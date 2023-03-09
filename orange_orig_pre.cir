@@ -1,0 +1,268 @@
+Design: Orange Thunderverb 200 Preamplifier Original Circuit Simulation [SpiceOpus]
+
+*********************************************************************************************
+*****************************************  Netlist  *****************************************
+*********************************************************************************************
+
+.param GAIN = 20
+.param BASS = 20
+.param MIDDLE = 20
+.param TREBLE = 40
+.param VOLUME = 99.9
+
+****************************************************************************
+*******************************  Subcircuits  ******************************
+****************************************************************************
+
+****************************************************************************
+*******************************  Main Circuit ******************************
+****************************************************************************
+
+*** 1st gain stage ***
+
+C_19        in 2       220n
+R_43         2 0       1meg
+R_47     v10_7 2        68k
+
+X_V10A   v10_6 v10_7 v10_8  12AX7 param: MU=65
+
+R_46     v10_8 0       1.5k
+C_21     v10_8 0       10u
+R_37     v10_6 F       100k
+
+
+*** 2nd gain stage ***
+
+C_25     v10_6 3       1n 
+R_54         3 4       220k
+R_62         4 0       470k
+
+C_30      v8_2 4       100p
+
+X_GAINA 4 v8_2 0       POT RES=1meg POS={GAIN}
+X_V8A     v8_1 v8_2 v8_3  12AX7 param: MU=80
+
+R_50      v8_3 0       2.2k
+C_23      v8_3 0       10u
+R_40      v8_1 F       100k
+
+*** 3rd gain stage ***
+
+C_27      v8_1 5       2.2n
+R_56         5 6       220k
+R_63         6 0       470k
+
+X_GAINB 6 v8_7 0       POT RES=1meg POS={GAIN}
+X_V8B     v8_6 v8_7 v8_8  12AX7 param: MU=80
+
+R_41      v8_6 E       100k
+R_51      v8_8 0         1k
+C_51p     v8_8 0       100u
+
+*** tone stack ***
+
+C_36      v8_6 8      560p
+R_61      v8_6 9       22k
+C_32        9 11       22n
+C_31        9 13       22n
+
+
+X_TREBLE 8 10 11     POT RES=250k POS={TREBLE}
+X_BASS  11 11 12     POT RES=500k POS={BASS}
+X_MID   12 13 0      POT RES=25k  POS={MIDDLE}
+X_VOL   10 14 0      POT RES=500k POS={VOLUME}
+
+
+*** send/return session ***
+
+R_4         14 indiv   270k
+R_3          0 indiv   220k
+
+C_2      indiv v7_2    220n
+
+X_V7A   D v7_2 v7_3   12AT7    param: MU=40
+
+R_14      v7_3 0        22k
+R_16      vref D       220k
+R_13      vref 0        33k
+C_11      vref 0        22u
+R_15      vref v7_2    1meg
+
+C_3       v7_3 15      220n
+R_5       send 15       39k
+R_12      send 0        33k
+
+Rjp1      send return   0.1
+
+C_4     return 16      220n
+R_19        16 0       1meg
+R_6       V7_7 16       68k
+
+X_V7B   V7_6 V7_7 V7_8   12AT7 param: MU=40
+
+R_18      V7_8 0       1.5k
+R_17      V7_6 D        56k
+C_5       V7_6 out     220n
+* Rjp2      V7_2 V7_6    0.1
+
+* Rout       out 0       1meg
+R_8        out in2     1meg
+R_64       in2 0       1meg
+R_65       in2 0       470k
+
+
+****************************************************************************
+*******************************  Test bench  *******************************
+****************************************************************************
+
+v_F         F 0        dc 200
+v_E         E 0        dc 230
+v_D         D 0        dc 250
+
+
+v_guitar    in 0        ac 1.0 dc 1.0 sin(0 5m 1k)
+
+****************************************************************************
+*******************************  Analysis  *********************************
+****************************************************************************
+
+.options temp = 27
+
+.control
+destroy all
+delete all
+
+.include 'Setup.lib'
+
+set nobreak
+set noprintindex
+set width=144
+*set noprintheader
+*set units=degree
+
+echo
+echo ----------------------------------------------------------------------------------------
+echo ----------------------------------- Circuit Analysis -----------------------------------
+echo ----------------------------------------------------------------------------------------
+echo
+
+op
+print all
+
+echo
+echo ----------------------------------------------------------------------------------------
+echo ---------------------------------- Transient analysis: ---------------------------------
+echo ----------------------------------------------------------------------------------------
+echo
+
+setplot new                 
+nameplot data
+
+let loop = 0
+
+foreach t 0.005 0.01
+
+let data.loop = data.loop+1
+let data.vpp = sqrt(2)*2*$(t)
+
+echo	loop: {data.loop} - $(t) Vrms : {data.vpp} Vpp
+
+alter @v_guitar[sin] = (0;{data.vpp};1k)
+
+* f = 1kHz
+tran 1u 100ms 95ms
+fourier 1k v(v10_6) v(v8_1) v(v8_6)
+end
+
+plot tran1.v(out) tran1.v(14)
++    tran2.v(out) tran2.v(14)
++ xlabel '   Time [ms]' vs time*1e3
++ ylabel '   Amplitude [V]'
++ title '   Orange amplifier'
+
+echo
+echo ...Done!
+
+echo
+echo ----------------------------------------------------------------------------------------
+echo ---------------------------------- Frequency analysis: ---------------------------------
+echo ----------------------------------------------------------------------------------------
+echo
+
+ac dec 100 1Hz 100kHz
+plot vdb(out) vdb(14) vdb(send)-vdb(14) vdb(out)-vdb(14)
++ xlabel '   Frequency [Hz]'
++ ylabel '   Response [dB]'
++ title '   Orange original preamplifier'
+
+echo
+echo ...Done!
+
+****************************************************************************
+*******************************  Output  ***********************************
+****************************************************************************
+
+set width=128
+set nobreak
+set noprintheader
+set noprintindex
+
+* print v(in) v(send) v(out) > th200_orig_pre.dat
+
+unset nobreak
+unset noprintheader
+unset noprintindex
+
+rusage temp
+
+echo
+echo ----------------------------------------------------------------------------------------
+echo ----------------------------------- End of Simulation ----------------------------------
+echo ----------------------------------------------------------------------------------------
+echo
+
+.endc
+
+*********************************************************************************************
+*****************************************  Models  ******************************************
+*********************************************************************************************
+
+* P G C; NEW MODEL
+.SUBCKT 12AX7 1 2 3  param: MU=100 EX=1.4 KG1=1060 KP=600 KVB=300 RGI=2000 CCG=2.3P  CGP=2.4P CCP=0.9P 
+
+BE1 7 0 V = V(1,3)/{KP} * LOG(   1 + EXP({KP}*(1/{MU} + V(2,3)/SQRT({KVB}+V(1,3)^2))))
+RE1 7 0 1G
+BG1 1 3 I = (ABS(V(7))^{EX} + V(7)^{EX})/{KG1}
+RCP 1 3 1G
+C1 2 3 {CCG}
+C2 2 1 {CGP}
+C3 1 3 {CCP}
+D3 5 3 DX
+R1 2 5 {RGI}
+
+.MODEL DX D(IS=1N RS=1 CJO=10PF TT=1N)
+.ENDS
+
+.SUBCKT 12AT7 1 2 3  param: MU=60 EX=1.35 KG1=460 KP=300 KVB=300 RGI=2000 CCG=2.3P  CGP=2.2P CCP=1.0P
+BE1 7 0 V = V(1,3)/{KP} * LOG( 1 + EXP({KP}*(1/{MU} + V(2,3)/SQRT({KVB}+V(1,3)^2))))
+RE1 7 0 1G
+BG1 1 3 I = (ABS(V(7))^{EX} + V(7)^{EX})/{KG1}
+RCP 1 3 1G
+C1 2 3 {CCG}
+C2 2 1 {CGP}
+C3 1 3 {CCP}
+D3 5 3 DX   
+R1 2 5 {RGI}
+
+.MODEL DX D(IS=1N RS=1 CJO=10PF TT=1N)
+.ENDS
+
+
+.SUBCKT POT 1 2 3  param: RES=1000k POS=50
+
+Rpot1   1 2    {RES*(1-POS/100)}
+Rpot2   2 3    {RES*POS/100}
+
+.ENDS
+
+.end

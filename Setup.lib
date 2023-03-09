@@ -1,0 +1,23 @@
+*****************************************************************************
+********************************  Setup  ************************************
+*****************************************************************************
+
+unset plotwininfo
+set plottype = line                       *** options: line, point or comb
+unset plotautoident
+
+set color0 = r190g200b255                        *** Background color
+set color1 = r000g120b255                        *** Grid color
+
+unset color2
+
+*set color2 = r100g070b100                       *** 1st vector color
+*set color3 = r255g000b055                       *** 2nd vector color
+*set color4 = r255g000b000                       *** 3rd vector color
+*set color5 = r050g100b100                       *** 4th vector color
+
+set plotwinwidth = 450
+set plotwinheight = 450
+
+set linewidth = 0
+
